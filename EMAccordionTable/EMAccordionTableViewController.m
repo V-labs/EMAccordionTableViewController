@@ -205,6 +205,11 @@
     return [[UIView alloc] init];
 }
 
+- (CGFloat)tableView:(UITableView *)tableView heightForFooterInSection:(NSInteger)section
+{
+    return 0.5;
+}
+
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if ([emDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)])
