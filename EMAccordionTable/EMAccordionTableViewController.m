@@ -85,13 +85,13 @@
 
 - (void) addAccordionSection: (EMAccordionSection *) section initiallyOpened:(BOOL)opened {
     [sections addObject:section];
-
+    
     NSInteger index = sections.count - 1;
     
     [sectionsOpened addObject:[NSNumber numberWithBool:opened]];
-    if (index == self.defaultOpenedSection) {
-        [sectionsOpened setObject:[NSNumber numberWithBool:YES] atIndexedSubscript:index];
-    }
+    //    if (index == self.defaultOpenedSection) {
+    //        [sectionsOpened setObject:[NSNumber numberWithBool:YES] atIndexedSubscript:index];
+    //    }
     
 }
 
@@ -155,42 +155,56 @@
 #pragma mark UITableViewDelegate
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
     return tableView.sectionHeaderHeight;
+    
 }
 
 - (UIView *) tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
-    EMAccordionSection *emAccordionSection = [sections objectAtIndex:section];
     
-    UIView *sectionView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, self.tableView.frame.size.width, tableView.sectionHeaderHeight)];
-    [sectionView setBackgroundColor:emAccordionSection.backgroundColor];
+    id returnedView = nil;
     
-    UIButton *sectionBtn = [[UIButton alloc] initWithFrame:CGRectMake(sectionView.frame.size.width - 40.0f, (sectionView.frame.size.height / 2) - 15.0f, 30.0f, 30.0f)];
-    [sectionBtn addTarget:self action:@selector(openTheSection:) forControlEvents:UIControlEventTouchDown];
-    [sectionBtn setTag:(kSectionTag + section)];
-    [sectionView addSubview:sectionBtn];
+    if ([emDelegate respondsToSelector:@selector(tableView:viewForHeaderInSection:)]) {
+        returnedView = [emDelegate tableView:tableView viewForHeaderInSection:section];
+    } else {
+        EMAccordionSection *emAccordionSection = [sections objectAtIndex:section];
+        
+        UIView *sectionView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, self.tableView.frame.size.width, tableView.sectionHeaderHeight)];
+        [sectionView setBackgroundColor:emAccordionSection.backgroundColor];
+        
+        UIButton *sectionBtn = [[UIButton alloc] initWithFrame:CGRectMake(sectionView.frame.size.width - 40.0f, (sectionView.frame.size.height / 2) - 15.0f, 30.0f, 30.0f)];
+        [sectionBtn addTarget:self action:@selector(openTheSection:) forControlEvents:UIControlEventTouchDown];
+        [sectionBtn setTag:(kSectionTag + section)];
+        [sectionView addSubview:sectionBtn];
+        
+        UILabel *cellTitle = [[UILabel alloc] initWithFrame:CGRectMake(5.0f, 0.0f, self.tableView.frame.size.width - 50.0f, sectionView.bounds.size.height)];
+        [cellTitle setText:emAccordionSection.title];
+        [cellTitle setTextColor:emAccordionSection.titleColor];
+        [cellTitle setBackgroundColor:[UIColor clearColor]];
+        [sectionView addSubview:cellTitle];
+        
+        UIImageView *accessoryIV = [[UIImageView alloc] initWithFrame:CGRectMake(sectionView.frame.size.width - 40.0f, (sectionView.frame.size.height / 2) - 15.0f, 30.0f, 30.0f)];
+        BOOL value = [[sectionsOpened objectAtIndex:section] boolValue];
+        [accessoryIV setBackgroundColor:[UIColor clearColor]];
+        if (value)
+            [accessoryIV setImage:self.openedSectionIcon];
+        else
+            [accessoryIV setImage:self.closedSectionIcon];
+        
+        [sectionView addSubview:accessoryIV];
+        
+        [self.sectionsHeaders insertObject:sectionView atIndex:section];
+        
+        returnedView = sectionView;
+    }
     
-    UILabel *cellTitle = [[UILabel alloc] initWithFrame:CGRectMake(5.0f, 0.0f, self.tableView.frame.size.width - 50.0f, sectionView.bounds.size.height)];
-    [cellTitle setText:emAccordionSection.title];
-    [cellTitle setTextColor:emAccordionSection.titleColor];
-    [cellTitle setBackgroundColor:[UIColor clearColor]];
-    [sectionView addSubview:cellTitle];
     
-    UIImageView *accessoryIV = [[UIImageView alloc] initWithFrame:CGRectMake(sectionView.frame.size.width - 40.0f, (sectionView.frame.size.height / 2) - 15.0f, 30.0f, 30.0f)];
-    BOOL value = [[sectionsOpened objectAtIndex:section] boolValue];
-    [accessoryIV setBackgroundColor:[UIColor clearColor]];
-    if (value)
-        [accessoryIV setImage:self.openedSectionIcon];
-    else
-        [accessoryIV setImage:self.closedSectionIcon];
-    
-    [sectionView addSubview:accessoryIV];
-    
-    [self.sectionsHeaders insertObject:sectionView atIndex:section];
-
-    if ([emDelegate respondsToSelector:@selector(tableView:viewForHeaderInSection:)])
-        return [emDelegate tableView:tableView viewForHeaderInSection:section];
-    
-    return sectionView;
+    return returnedView;
 }
+
+- (UIView *)tableView:(UITableView *)tableView viewForFooterInSection:(NSInteger)section
+{
+    return [[UIView alloc] init];
+}
+
 
 - (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath {
     if ([emDelegate respondsToSelector:@selector(tableView:heightForRowAtIndexPath:)])
@@ -199,6 +213,11 @@
         [NSException raise:@"The delegate doesn't respond ew:heightForRowAtIndexP:" format:@"The delegate doesn't respond ew:heightForRowAtIndexP:"];
     
     return 0.0;
+}
+
+- (CGFloat)tableView:(UITableView *)tableView estimatedHeightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 150;
 }
 
 
@@ -211,13 +230,13 @@
     [sectionsOpened setObject:updatedValue atIndexedSubscript:index];
     
     openedSection = index;
-
+    
     [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:index] withRowAnimation:UITableViewRowAnimationAutomatic];
     
     if (!value)
         [self showCellsWithAnimation];
     
-    [emDelegate latestSectionOpened];
+    [emDelegate latestSectionViewOpened:sender withValue:!value];
 }
 
 - (void) scrollViewDidScroll:(UIScrollView *)scrollView {
@@ -229,7 +248,7 @@
     
     if (showedCell >= cells.count)
         return;
-//    for (UIView *card in cells) {
+    //    for (UIView *card in cells) {
     
     UIView *card = [cells objectAtIndex:showedCell];
     
@@ -245,7 +264,7 @@
         showedCell++;
         [self showCellsWithAnimation];
     }];
-//    }
+    //    }
 }
 
 @end
